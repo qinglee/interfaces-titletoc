@@ -1,5 +1,5 @@
 
-module = "interfaces-titletoc"
+module = "titleitf"
 
 packtdszip = true
 tdsroot    = "latex"
@@ -8,9 +8,9 @@ supportdir  =  "./support"
 textfiledir = "./build/unpacked"
 unpackexe   = "luatex"
 
-sourcefiles      = {"interfaces-titletoc.dtx"}
-unpackfiles      = {"interfaces-titletoc.dtx"}
+sourcefiles      = {"titleitf.dtx"}
+unpackfiles      = {"titleitf.dtx"}
 installfiles     = {"*.sty"}
-unpacksuppfiles  = {"interfaces-titletoc.id"}
+unpacksuppfiles  = {"titleitf.id"}
 
 dofile("./support/build-config.lua")
