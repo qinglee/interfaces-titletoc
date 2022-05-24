@@ -158,7 +158,7 @@ Copyright and Licence
 %</driver>
 % \fi
 %
-% \CheckSum{324}
+% \CheckSum{332}
 % \GetFileId{titleitf.sty}
 %
 % \changes{v0}{2022/05/22}{初始版本。}
@@ -301,6 +301,15 @@ Copyright and Licence
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_cs_undefine:N, \@@_cs_undefine:c}
+% \cs{cs_undefine:N} 的效果是全局的，但是我们只需要局部的效果。
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_cs_undefine:N #1
+  { \cs_set_eq:NN #1 \tex_undefined:D }
+\cs_generate_variant:Nn \@@_cs_undefine:N { c }
+%    \end{macrocode}
+% \end{macro}
+%
 %    \begin{macrocode}
 \DeclareObjectType { ttlitf } { 1 }
 %    \end{macrocode}
@@ -371,43 +380,28 @@ Copyright and Licence
               { [ \exp_not:c { \l_@@_super_level_tl } ] }
           }
       }
-    \cs_if_exist:cF { ttlh@ \l_@@_shape_tl }
-      {
-        \file_if_exist_input:nF { \l_@@_shape_tl .tss }
-          {
-            \cs_if_exist:cTF { ttlhx@ \l_@@_shape_tl }
-              {
-                \cs_new_eq:cc
-                  { ttlh@ \l_@@_shape_tl }
-                  { ttlhx@ \l_@@_shape_tl }
-              }
-              {
-                \msg_error:nnx { ttlitf } { unknown-shape }
-                  { \l_@@_shape_tl }
-              }
-          }
-      }
+    \@@_prepare_shape:e { \l_@@_shape_tl }
     \bool_if:NF \l_@@_numberless_bool
       {
-        \cs_set_eq:cN { ttlf@ #1 / * }  \tex_undefined:D
-        \cs_set_eq:cN { ttls@ #1 / * }  \tex_undefined:D
+        \@@_cs_undefine:c { ttlf@ #1 / * }
+        \@@_cs_undefine:c { ttls@ #1 / * }
       }
     \tl_if_empty:NTF \l_@@_page_tl
       {
         \cs_set_eq:NN \ttlp@append \use_none:nn
-        \cs_set_eq:cN { ttlp@#1 } \tex_undefined:D
-        \cs_set_eq:cN { ttlf@ #1 / odd  } \tex_undefined:D
-        \cs_set_eq:cN { ttls@ #1 / odd  } \tex_undefined:D
-        \cs_set_eq:cN { ttlf@ #1 / even } \tex_undefined:D
-        \cs_set_eq:cN { ttls@ #1 / even } \tex_undefined:D
+        \@@_cs_undefine:c { ttlp@ #1 }
+        \@@_cs_undefine:c { ttlf@ #1 / odd  }
+        \@@_cs_undefine:c { ttls@ #1 / odd  }
+        \@@_cs_undefine:c { ttlf@ #1 / even }
+        \@@_cs_undefine:c { ttls@ #1 / even }
         \cs_set_eq:cc { ttlf@ #1 / odd  / * } { ttlf@ #1 / * }
         \cs_set_eq:cc { ttls@ #1 / odd  / * } { ttls@ #1 / * }
         \cs_set_eq:cc { ttlf@ #1 / even / * } { ttlf@ #1 / * }
         \cs_set_eq:cc { ttls@ #1 / even / * } { ttls@ #1 / * }
       }
       {
-        \cs_if_exist:cF { ttlp@#1 }
-          { \cs_set_eq:cN { ttlp@#1 } \c_empty_tl }
+        \cs_if_exist:cF { ttlp@ #1 }
+          { \cs_set_eq:cN { ttlp@ #1 } \c_empty_tl }
         \cs_set_eq:NN \ttlp@append \@@_ttlp_append:nn
       }
     \tl_set:Nx \l_@@_section_tl
@@ -437,34 +431,57 @@ Copyright and Licence
         { \exp_not:N \skip_eval:n { \exp_not:o { \l_@@_right_sep_tl } } }
         { \exp_not:N \skip_eval:n { \exp_not:o { \l_@@_before_sep_tl } } }
         { \exp_not:N \skip_eval:n { \exp_not:o { \l_@@_after_sep_tl } } }
-        {
-          \bool_if:NTF \l_@@_indent_first_bool
-            { \c_one_int }
-            { \c_zero_int }
-        }
+        { \bool_if:NTF \l_@@_indent_first_bool { \@ne } { \z@ } }
       }
     \tl_if_empty:NF \l_@@_page_style_tl
       { \cs_set_eq:cN { ttl@ps@ #1 } { \l_@@_page_style_tl } }
     \quark_if_no_value:NF \l_@@_break_tl
       {
-        \cs_set_protected:cpn { #1 break }
+        \cs_set_protected:cpx { #1 break }
           { \exp_not:o { \l_@@_break_tl } }
       }
     \quark_if_no_value:NF \l_@@_mark_tl
       {
-        \cs_set_protected:cpn { #1 mark } ##1
-          { \exp_not:o { \l_@@_mark_tl } }
+        \exp_args:Nno \use:n
+          { \cs_set_protected:cpn { #1 mark } ##1 }
+          { \l_@@_mark_tl }
       }
   }
 \tl_new:N \l_@@_page_tl
 \tl_new:N \l_@@_section_tl
 \msg_new:nnnn { ttlitf } { unknown-shape }
-  { Shape~"#1"~is~unknown. }
+  { Title~shape~"#1"~is~unknown. }
   {
     Shapes~are~defined~in~files~with~extension~tss.\\
     Either~you~have~misspelled~the~shape~or~there~is~no~a~#1.tss~file.
   }
 %    \end{macrocode}
+%
+% \begin{macro}{\@@_prepare_shape:n}
+% 确保 \meta{shape} 存在。
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_prepare_shape:n #1
+  {
+    \cs_if_exist:cF { ttlh@ #1 }
+      {
+        \cctab_begin:N \c_@@_package_cctab
+          \file_if_exist_input:nF { #1 .tss }
+            {
+              \cs_if_exist:cTF { ttlhx@ #1 }
+                { \cs_new_eq:cc { ttlh@ #1 } { ttlhx@ #1 } }
+                { \msg_error:nnn { ttlitf } { unknown-shape } {#1} }
+            }
+        \cctab_end:
+      }
+  }
+\cctab_const:Nn \c_@@_package_cctab
+  {
+    \cctab_select:N \c_document_cctab
+    \char_set_catcode_letter:n { 64 }
+  }
+\cs_generate_variant:Nn { \@@_prepare_shape:n } { e }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}{\@@_extract_sec:n}
 % 获取标题默认设置。
@@ -587,11 +604,7 @@ Copyright and Licence
     \cs_set_protected_nopar:cpx { l@ #1 }
       {
         \exp_not:N \ttl@tocentry
-          {
-            \bool_if:NTF \l_@@_block_bool
-              { \c_zero_int }
-              { \c_one_int }
-          }
+          { \bool_if:NTF \l_@@_block_bool { \z@ } { \@ne } }
           {#1}
           { \exp_not:N \skip_eval:n { \exp_not:o { \l_@@_leftskip_tl } } }
           { \exp_not:o { \l_@@_above_code_tl } }
