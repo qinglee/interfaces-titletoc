@@ -158,7 +158,7 @@ Copyright and Licence
 %</driver>
 % \fi
 %
-% \CheckSum{489}
+% \CheckSum{504}
 % \GetFileId{titleitf.sty}
 %
 % \changes{v0}{2022/05/22}{初始版本。}
@@ -669,6 +669,7 @@ Copyright and Licence
     format     : tokenlist = ,
     head       : commalist = ,
     foot       : commalist = ,
+    offset     : commalist = ,
     titlemarks : commalist = ,
     headrule   : tokenlist = ,
     footrule   : tokenlist = ,
@@ -678,6 +679,7 @@ Copyright and Licence
     format     = \l_@@_page_format_tl ,
     head       = \l_@@_head_clist ,
     foot       = \l_@@_foot_clist ,
+    offset     = \l_@@_offset_clist ,
     titlemarks = \l_@@_title_marks_clist ,
     headrule   = \l_@@_headrule_tl ,
     footrule   = \l_@@_footrule_tl ,
@@ -689,8 +691,9 @@ Copyright and Licence
         \exp_not:N \def \exp_not:N \ttl@headfmt
           { \exp_not:o { \l_@@_page_format_tl } }
       }
-    \@@_add_line:onn { \l_@@_head_clist } {#1} { head }
-    \@@_add_line:onn { \l_@@_foot_clist } {#1} { foot }
+    \exp_args:No \@@_add_offset:n { \l_@@_offset_clist }
+    \exp_args:No \@@_add_line:nn { \l_@@_head_clist } { head }
+    \exp_args:No \@@_add_line:nn { \l_@@_foot_clist } { foot }
     \clist_if_empty:NF \l_@@_title_marks_clist
       {
         \tl_put_right:Nx \l_@@_style_tl
@@ -701,24 +704,20 @@ Copyright and Licence
       }
     \@@_add_rule:n { head }
     \@@_add_rule:n { foot }
-    \@@_set_page_style:on { \l_@@_style_tl } {#1}
+    \@@_set_page_style:no {#1} { \l_@@_style_tl }
   }
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_add_style:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_style:n #1
+  { \tl_put_right:Nn \l_@@_style_tl {#1} }
 \tl_new:N \l_@@_style_tl
-\cs_new_protected:Npn \@@_add_line:nnn #1#2#3
-  {
-    \ttlitf_set:nnn { head-foot } { #3 / #2 } {#1}
-    \tl_if_eq:NNF \l_@@_line_tl \c_@@_empty_line_tl
-      {
-        \tl_put_right:Nx \l_@@_style_tl
-          {
-            \exp_not:c { ttl@set #3 }
-            \exp_not:o { \l_@@_line_tl }
-          }
-      }
-  }
-\cs_generate_variant:Nn \@@_add_line:nnn { o }
-\tl_const:Nn \c_@@_empty_line_tl
-  { [ { } ] [ { } ] [ { } ] { } { } { } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_add_rule:n}
+%    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_rule:n #1
   {
     \@@_add_rule_auxi:cccc
@@ -738,21 +737,27 @@ Copyright and Licence
     \bool_lazy_or:nnTF
       { \tl_if_head_eq_meaning_p:nN {#1} #2 }
       { \tl_if_head_eq_meaning_p:nN {#1} #3 }
-      { \tl_put_right:Nn \l_@@_style_tl {#1} }
-      { \tl_put_right:Nn \l_@@_style_tl { \def #4 {#1} } }
+      { \@@_add_style:n {#1} }
+      { \@@_add_style:n { \def #4 {#1} } }
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_page_style:nn}
+%    \begin{macrocode}
 \cs_new_protected:Npn \@@_set_page_style:nn #1#2
   {
-    \cs_set_protected:cpn { ps @ #2 }
+    \cs_set_protected:cpn { ps @ #1 }
       {
         \ttl@defaultps
-        #1
+        #2
         \def \settitlemarks
           { \@ifstar \ttl@svmarks@s \ttl@svmarks@x }
       }
   }
-\cs_generate_variant:Nn \@@_set_page_style:nn { o }
+\cs_generate_variant:Nn \@@_set_page_style:nn { no }
 %    \end{macrocode}
+% \end{macro}
 %
 % \begin{desc}
 % |\sethead[<even-left>][<even-center>][<even-right>]|\\
@@ -761,39 +766,50 @@ Copyright and Licence
 % |        {<odd-left>}{<odd-center>}{<odd-right>}|
 % \end{desc}
 %    \begin{macrocode}
-\DeclareTemplateInterface { ttlitf } { head-foot } { 1 }
+\keys_define:nn { ttlitf / LCR }
   {
-    left        : tokenlist = ,
-    center      : tokenlist = ,
-    right       : tokenlist = ,
-    inner       : tokenlist = \q_no_value ,
-    outer       : tokenlist = \q_no_value ,
-    odd-left    : tokenlist = \KeyValue { left } ,
-    odd-center  : tokenlist = \KeyValue { center } ,
-    odd-right   : tokenlist = \KeyValue { right } ,
-    even-left   : tokenlist = \KeyValue { left } ,
-    even-center : tokenlist = \KeyValue { center } ,
-    even-right  : tokenlist = \KeyValue { right } ,
+    odd  / left   .tl_set:N = \l_@@_odd_left_tl ,
+    odd  / center .tl_set:N = \l_@@_odd_center_tl ,
+    odd  / right  .tl_set:N = \l_@@_odd_right_tl ,
+    even / left   .tl_set:N = \l_@@_even_left_tl ,
+    even / center .tl_set:N = \l_@@_even_center_tl ,
+    even / right  .tl_set:N = \l_@@_even_right_tl ,
+    left            .code:n = \@@_set_both:nn { left }   {#1} ,
+    center          .code:n = \@@_set_both:nn { center } {#1} ,
+    right           .code:n = \@@_set_both:nn { right }  {#1} ,
+    inner           .code:n = \@@_set_inner:n {#1} ,
+    outer           .code:n = \@@_set_outer:n {#1} ,
+    odd            .meta:nn = { ttlitf / LCR / odd }  {#1} ,
+    even           .meta:nn = { ttlitf / LCR / even } {#1} ,
+    center        .groups:n = { center } ,
+    odd  / center .groups:n = { center } ,
+    even / center .groups:n = { center } ,
   }
-\DeclareTemplateCode { ttlitf } { head-foot } { 1 }
+\cs_new_protected:Npn \@@_set_both:nn #1#2
   {
-    left        = \l_@@_left_tl ,
-    center      = \l_@@_center_tl ,
-    right       = \l_@@_right_tl ,
-    inner       = \l_@@_inner_tl ,
-    outer       = \l_@@_outer_tl ,
-    odd-left    = \l_@@_odd_left_tl ,
-    odd-center  = \l_@@_odd_center_tl ,
-    odd-right   = \l_@@_odd_right_tl ,
-    even-left   = \l_@@_even_left_tl ,
-    even-center = \l_@@_even_center_tl ,
-    even-right  = \l_@@_even_right_tl ,
+    \tl_set:cn { l_@@_odd_  #1 _tl } {#2}
+    \tl_set:cn { l_@@_even_ #1 _tl } {#2}
   }
+\cs_new_protected:Npn \@@_set_inner:n #1
   {
-    \AssignTemplateKeys
-    \@@_set_inner:
-    \@@_set_outer:
-    \tl_set:Nx \l_@@_line_tl
+    \tl_set:Nn \l_@@_odd_left_tl   {#1}
+    \tl_set:Nn \l_@@_even_right_tl {#1}
+  }
+\cs_new_protected:Npn \@@_set_outer:n #1
+  {
+    \tl_set_eq:NN \l_@@_odd_right_tl {#1}
+    \tl_set_eq:NN \l_@@_even_left_tl {#1}
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_add_line:nn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_line:nn #1#2
+  {
+    \group_begin:
+      \keys_set:nn { ttlitf / LCR } {#1}
+    \exp_args:NNNe \group_end:
+    \tl_set:Nn \l_@@_line_tl
       {
         [ { \exp_not:o { \l_@@_even_left_tl } } ]
         [ { \exp_not:o { \l_@@_even_center_tl } } ]
@@ -802,25 +818,46 @@ Copyright and Licence
         { \exp_not:o { \l_@@_odd_center_tl } }
         { \exp_not:o { \l_@@_odd_right_tl } }
       }
+    \tl_if_eq:NNF \l_@@_line_tl \c_@@_empty_line_tl
+      {
+        \exp_args:Ne \@@_add_style:n
+          {
+            \exp_not:c { ttl@set #2 }
+            \exp_not:o { \l_@@_line_tl }
+          }
+      }
   }
+\exp_args_generate:n { NNe }
 \tl_new:N \l_@@_line_tl
-\cs_new_protected:Npn \@@_set_inner:
+\tl_const:Nn \c_@@_empty_line_tl
+  { [ { } ] [ { } ] [ { } ] { } { } { } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_set_offset:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_offset:n #1
   {
-    \quark_if_no_value:NF \l_@@_inner_tl
+    \group_begin:
+      \keys_set_filter:nnn { ttlitf / LCR } { center } {#1}
+    \exp_args:NNe \group_end:
+    \@@_add_style:n
       {
-        \tl_set_eq:NN \l_@@_even_right_tl \l_@@_inner_tl
-        \tl_set_eq:NN \l_@@_odd_left_tl   \l_@@_inner_tl
+        \exp_not:N \ttl@widenhd
+          [ \@@_skip_aux:N \l_@@_even_left_tl ]
+          [ \@@_skip_aux:N \l_@@_even_right_tl ]
+          { \@@_skip_aux:N \l_@@_odd_left_tl }
+          { \@@_skip_aux:N \l_@@_odd_right_tl }
       }
   }
-\cs_new_protected:Npn \@@_set_outer:
+\cs_new:Npn \@@_skip_aux:N #1
   {
-    \quark_if_no_value:NF \l_@@_outer_tl
-      {
-        \tl_set_eq:NN \l_@@_even_left_tl \l_@@_outer_tl
-        \tl_set_eq:NN \l_@@_odd_right_tl \l_@@_outer_tl
-      }
+    \tl_if_empty:NTF #1
+      { 0pt }
+      { \skip_eval:n {#1} }
   }
 %    \end{macrocode}
+% \end{macro}
 %
 %    \begin{macrocode}
 %</package>
