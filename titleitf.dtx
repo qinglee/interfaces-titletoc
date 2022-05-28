@@ -158,7 +158,7 @@ Copyright and Licence
 %</driver>
 % \fi
 %
-% \CheckSum{332}
+% \CheckSum{489}
 % \GetFileId{titleitf.sty}
 %
 % \changes{v0}{2022/05/22}{初始版本。}
@@ -225,7 +225,7 @@ Copyright and Licence
 %
 % \begin{function}{\pageset}
 %   \begin{syntax}
-%     \tn{pageset} \Arg{section} \Arg{ ... }
+%     \tn{pageset} \Arg{page style} \Arg{ ... }
 %   \end{syntax}
 % \end{function}
 %
@@ -244,7 +244,7 @@ Copyright and Licence
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-%<@@=titleitf>
+%<@@=ttlitf>
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -257,16 +257,16 @@ Copyright and Licence
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\hook_gput_code:nnn { begindocument } { . }
+\exp_args:Nnnx \hook_gput_code:nnn { begindocument } { titleitf }
   {
-    \legacy_if:nT { @filesw }
+    \exp_not:N \legacy_if:nT { @filesw }
       {
-        \iow_now:Nx \@mainaux
+        \iow_now:Nx \exp_not:N \@mainaux
           {
             \iow_char:N \\ providecommand
-            \iow_char:N \\ ttlp@append [2] { } \iow_newline:
+            \iow_char:N \\ ttlp@append [2] { } \exp_not:N \iow_newline:
             \iow_char:N \\ providecommand
-            \iow_char:N \\ ttl@finishall   { } \iow_newline:
+            \iow_char:N \\ ttl@finishall   { } \exp_not:N \iow_newline:
             \iow_char:N \\ providecommand
             \iow_char:N \\ contentsfinish  { }
           }
@@ -291,13 +291,28 @@ Copyright and Licence
 %    \begin{macrocode}
 \cs_new_protected:Npn \ttlitf_set:nnn #1#2#3
   {
-    \IfInstanceExistTF { ttlitf } { #1 / #2 }
-      { \EditInstance { ttlitf } { #1 / #2 } }
-      { \DeclareInstance { ttlitf } { #1 / #2 } {#1} }
-      {#3}
-    \UseInstance { ttlitf } { #1 / #2 } {#2}
+    \@@_if_instance_exist:nnTF {#1} {#2}
+      { \@@_edit_instance:nnn }
+      { \@@_declare_instance:nnn }
+      {#1} {#2} {#3}
+    \@@_use_instance:nn {#1} {#2}
   }
 \cs_generate_variant:Nn \ttlitf_set:nnn { ne }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_declare_instance:nnn, \@@_edit_instance:nnn,
+%   \@@_use_instance:nn, \@@_if_instance_exist:nnTF}
+% 简单封装。
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_declare_instance:nnn #1#2
+  { \DeclareInstance { ttlitf } { #1 / #2 } {#1} }
+\cs_new_protected:Npn \@@_edit_instance:nnn #1#2
+  { \EditInstance { ttlitf } { #1 / #2 } }
+\cs_new_protected:Npn \@@_use_instance:nn #1#2
+  { \UseInstance { ttlitf } { #1 / #2 } {#2} }
+\cs_new_protected:Npn \@@_if_instance_exist:nnTF #1#2
+  { \IfInstanceExistTF { ttlitf } { #1 / #2 } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -313,6 +328,8 @@ Copyright and Licence
 %    \begin{macrocode}
 \DeclareObjectType { ttlitf } { 1 }
 %    \end{macrocode}
+%
+% \subsection{\tn{secset}}
 %
 % \begin{desc}
 % |\titleformat{<command>}[<shape>]{<format>}{<label>}{<sep>}{<before-code>}[<after-code>]|\\
@@ -495,9 +512,8 @@ Copyright and Licence
       { \@@_extract_sec_spacing:c { ttls@ #1 } }
     \clist_if_empty:NF \l_@@_extract_list
       {
-        \exp_args:Nno \use:n
-          { \DeclareInstance { ttlitf } { sec / #1 } { sec } }
-          { \l_@@_extract_list }
+        \exp_args:Nnno \@@_declare_instance:nnn
+          { sec } {#1} { \l_@@_extract_list }
       }
   }
 \cs_new_protected:Npn \@@_extract_sec_format:N #1
@@ -549,8 +565,16 @@ Copyright and Licence
 % 标准章节标题命令列表。
 %    \begin{macrocode}
 \seq_const_from_clist:Nn \c_@@_sec_seq
-  { part, chapter, section, subsection, subsubsection, paragraph, subparagraph }
-\hook_gput_code:nnn { package/titlesec/after } { . }
+  {
+    part ,
+    chapter ,
+    section ,
+    subsection ,
+    subsubsection ,
+    paragraph ,
+    subparagraph
+  }
+\hook_gput_code:nnn { package/titlesec/after } { titleitf }
   {
     \cs_if_exist_use:NT \ttl@keys
       { \cs_new_eq:NN \@@_ttlp_append:nn \ttlp@append }
@@ -558,6 +582,8 @@ Copyright and Licence
   }
 %    \end{macrocode}
 % \end{variable}
+%
+% \subsection{\tn{tocset}}
 %
 % \begin{desc}
 % |\titlecontents{<section>}[<left>]{<above-code>}|\\
@@ -625,6 +651,174 @@ Copyright and Licence
     \bool_if:NTF \l_@@_block_bool
       { \tl_set_eq:cN { ttle@ #1 } \l_@@_end_code_tl }
       { \tl_set_eq:cN { ttle@ #1 } \l_@@_below_code_tl }
+  }
+%    \end{macrocode}
+%
+% \subsection{\tn{pageset}}
+%
+% \begin{desc}
+% |\newpagestyle{<name>}[<global-style>]{<commands>}|\\
+% |\settitlemarks{<level-name>,<sublevel-name>,<subsublevel-name>...}|\\
+% |\headrule \footrule|\\
+% |\setheadrule{<length>} \setfootrule{<length>}|\\
+% |\makeheadrule \makefootrule|
+% \end{desc}
+%    \begin{macrocode}
+\DeclareTemplateInterface { ttlitf } { page } { 1 }
+  {
+    format     : tokenlist = ,
+    head       : commalist = ,
+    foot       : commalist = ,
+    titlemarks : commalist = ,
+    headrule   : tokenlist = ,
+    footrule   : tokenlist = ,
+  }
+\DeclareTemplateCode { ttlitf } { page } { 1 }
+  {
+    format     = \l_@@_page_format_tl ,
+    head       = \l_@@_head_clist ,
+    foot       = \l_@@_foot_clist ,
+    titlemarks = \l_@@_title_marks_clist ,
+    headrule   = \l_@@_headrule_tl ,
+    footrule   = \l_@@_footrule_tl ,
+  }
+  {
+    \AssignTemplateKeys
+    \tl_set:Nx \l_@@_style_tl
+      {
+        \exp_not:N \def \exp_not:N \ttl@headfmt
+          { \exp_not:o { \l_@@_page_format_tl } }
+      }
+    \@@_add_line:onn { \l_@@_head_clist } {#1} { head }
+    \@@_add_line:onn { \l_@@_foot_clist } {#1} { foot }
+    \clist_if_empty:NF \l_@@_title_marks_clist
+      {
+        \tl_put_right:Nx \l_@@_style_tl
+          {
+            \exp_not:N \ttl@setmarks@x
+              { \exp_not:o { \l_@@_title_marks_clist } }
+          }
+      }
+    \@@_add_rule:n { head }
+    \@@_add_rule:n { foot }
+    \@@_set_page_style:on { \l_@@_style_tl } {#1}
+  }
+\tl_new:N \l_@@_style_tl
+\cs_new_protected:Npn \@@_add_line:nnn #1#2#3
+  {
+    \ttlitf_set:nnn { head-foot } { #3 / #2 } {#1}
+    \tl_if_eq:NNF \l_@@_line_tl \c_@@_empty_line_tl
+      {
+        \tl_put_right:Nx \l_@@_style_tl
+          {
+            \exp_not:c { ttl@set #3 }
+            \exp_not:o { \l_@@_line_tl }
+          }
+      }
+  }
+\cs_generate_variant:Nn \@@_add_line:nnn { o }
+\tl_const:Nn \c_@@_empty_line_tl
+  { [ { } ] [ { } ] [ { } ] { } { } { } }
+\cs_new_protected:Npn \@@_add_rule:n #1
+  {
+    \@@_add_rule_auxi:cccc
+      { l_@@_ #1 rule_tl }
+      { #1 rule }
+      { set #1 rule }
+      { make #1 rule }
+  }
+\cs_new_protected:Npn \@@_add_rule_auxi:NNNN #1#2#3#4
+  {
+    \tl_if_empty:NF #1
+      { \exp_args:No \@@_add_rule_auxii:nNNN {#1} #2#3#4 }
+  }
+\cs_generate_variant:Nn \@@_add_rule_auxi:NNNN { cccc }
+\cs_new_protected:Npn \@@_add_rule_auxii:nNNN #1#2#3#4
+  {
+    \bool_lazy_or:nnTF
+      { \tl_if_head_eq_meaning_p:nN {#1} #2 }
+      { \tl_if_head_eq_meaning_p:nN {#1} #3 }
+      { \tl_put_right:Nn \l_@@_style_tl {#1} }
+      { \tl_put_right:Nn \l_@@_style_tl { \def #4 {#1} } }
+  }
+\cs_new_protected:Npn \@@_set_page_style:nn #1#2
+  {
+    \cs_set_protected:cpn { ps @ #2 }
+      {
+        \ttl@defaultps
+        #1
+        \def \settitlemarks
+          { \@ifstar \ttl@svmarks@s \ttl@svmarks@x }
+      }
+  }
+\cs_generate_variant:Nn \@@_set_page_style:nn { o }
+%    \end{macrocode}
+%
+% \begin{desc}
+% |\sethead[<even-left>][<even-center>][<even-right>]|\\
+% |        {<odd-left>}{<odd-center>}{<odd-right>}|\\
+% |\setfoot[<even-left>][<even-center>][<even-right>]|\\
+% |        {<odd-left>}{<odd-center>}{<odd-right>}|
+% \end{desc}
+%    \begin{macrocode}
+\DeclareTemplateInterface { ttlitf } { head-foot } { 1 }
+  {
+    left        : tokenlist = ,
+    center      : tokenlist = ,
+    right       : tokenlist = ,
+    inner       : tokenlist = \q_no_value ,
+    outer       : tokenlist = \q_no_value ,
+    odd-left    : tokenlist = \KeyValue { left } ,
+    odd-center  : tokenlist = \KeyValue { center } ,
+    odd-right   : tokenlist = \KeyValue { right } ,
+    even-left   : tokenlist = \KeyValue { left } ,
+    even-center : tokenlist = \KeyValue { center } ,
+    even-right  : tokenlist = \KeyValue { right } ,
+  }
+\DeclareTemplateCode { ttlitf } { head-foot } { 1 }
+  {
+    left        = \l_@@_left_tl ,
+    center      = \l_@@_center_tl ,
+    right       = \l_@@_right_tl ,
+    inner       = \l_@@_inner_tl ,
+    outer       = \l_@@_outer_tl ,
+    odd-left    = \l_@@_odd_left_tl ,
+    odd-center  = \l_@@_odd_center_tl ,
+    odd-right   = \l_@@_odd_right_tl ,
+    even-left   = \l_@@_even_left_tl ,
+    even-center = \l_@@_even_center_tl ,
+    even-right  = \l_@@_even_right_tl ,
+  }
+  {
+    \AssignTemplateKeys
+    \@@_set_inner:
+    \@@_set_outer:
+    \tl_set:Nx \l_@@_line_tl
+      {
+        [ { \exp_not:o { \l_@@_even_left_tl } } ]
+        [ { \exp_not:o { \l_@@_even_center_tl } } ]
+        [ { \exp_not:o { \l_@@_even_right_tl } } ]
+        { \exp_not:o { \l_@@_odd_left_tl } }
+        { \exp_not:o { \l_@@_odd_center_tl } }
+        { \exp_not:o { \l_@@_odd_right_tl } }
+      }
+  }
+\tl_new:N \l_@@_line_tl
+\cs_new_protected:Npn \@@_set_inner:
+  {
+    \quark_if_no_value:NF \l_@@_inner_tl
+      {
+        \tl_set_eq:NN \l_@@_even_right_tl \l_@@_inner_tl
+        \tl_set_eq:NN \l_@@_odd_left_tl   \l_@@_inner_tl
+      }
+  }
+\cs_new_protected:Npn \@@_set_outer:
+  {
+    \quark_if_no_value:NF \l_@@_outer_tl
+      {
+        \tl_set_eq:NN \l_@@_even_left_tl \l_@@_outer_tl
+        \tl_set_eq:NN \l_@@_odd_right_tl \l_@@_outer_tl
+      }
   }
 %    \end{macrocode}
 %
