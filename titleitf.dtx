@@ -158,7 +158,7 @@ Copyright and Licence
 %</driver>
 % \fi
 %
-% \CheckSum{661}
+% \CheckSum{662}
 % \GetFileId{titleitf.sty}
 %
 % \changes{v0}{2022/05/22}{初始版本。}
@@ -274,15 +274,33 @@ Copyright and Licence
   }
 %    \end{macrocode}
 %
+% \begin{macro}{\ttlitf_exp:n}
+% 先展开参数，再去掉头尾空格。
+%    \begin{macrocode}
+\cs_new_protected:Npn \ttlitf_exp:n #1
+  {
+    \tl_set:Nx \ProcessedArgument {#1}
+    \tl_trim_spaces:N \ProcessedArgument
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\secset, \tocset, \pageset}
 % 用户函数。
 %    \begin{macrocode}
-\NewDocumentCommand \secset { > { \TrimSpaces } m }
-  { \ttlitf_set:nen { sec } {#1} }
-\NewDocumentCommand \tocset { > { \TrimSpaces } m }
-  { \ttlitf_set:nen { toc } {#1} }
-\NewDocumentCommand \pageset { > { \TrimSpaces } m }
-  { \ttlitf_set:nen { page } {#1} }
+\NewDocumentCommand \secset { > { \ttlitf_exp:n } m }
+  { \ttlitf_set:nnn { sec } {#1} }
+\NewDocumentCommand \tocset { > { \ttlitf_exp:n } m }
+  { \ttlitf_set:nnn { toc } {#1} }
+\NewDocumentCommand \pageset { > { \ttlitf_exp:n } m }
+  {
+    \str_case:nnF {#1}
+      {
+        { nextfloathead } { \ttlitf_next_float:nn { head } }
+        { nextfloatfoot } { \ttlitf_next_float:nn { foot } }
+      }
+      { \ttlitf_set:nnn { page } {#1} }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -297,7 +315,6 @@ Copyright and Licence
       {#1} {#2} {#3}
     \@@_use_instance:nn {#1} {#2}
   }
-\cs_generate_variant:Nn \ttlitf_set:nnn { ne }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -388,11 +405,10 @@ Copyright and Licence
     \AssignTemplateKeys
     \tl_if_empty:NF \l_@@_class_tl
       {
-        \use:e
+        \exp_last_unbraced:Ne \titleclass
           {
-            \exp_not:N \titleclass
-              { \exp_not:c {#1} }
-              { \exp_not:o {\l_@@_class_tl } }
+            { \exp_not:c {#1} }
+            { \exp_not:o {\l_@@_class_tl } }
             \tl_if_empty:NF \l_@@_super_level_tl
               { [ \exp_not:c { \l_@@_super_level_tl } ] }
           }
@@ -894,8 +910,7 @@ Copyright and Licence
     extra   .tl_set:N = \l_@@_float_extra_tl ,
     extra   .groups:n = { extra } ,
     placement .code:n = \@@_set_float_placement:n {#1} ,
-    unknown   .code:n =
-      \exp_args:No \@@_set_float_unknown:nn { \l_keys_key_str } {#1}
+    unknown   .code:n = \@@_set_float_unknown:nn { \l_keys_key_str } {#1}
   }
 %    \end{macrocode}
 %
@@ -903,25 +918,15 @@ Copyright and Licence
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_set_float_placement:n #1
   {
-    \tl_set:Nx \l_@@_tmp_tl {#1}
-    \tl_remove_all:Nn \l_@@_tmp_tl { ~ }
-    \tl_if_empty:NTF \l_@@_tmp_tl
-      { \tl_clear:N \l_@@_float_placement_tl }
-      {
-        \exp_args:No \@@_set_float_placement_aux:nn
-          { \l_@@_tmp_tl } {#1}
-      }
+    \@@_placement_normalization:Nn \l_@@_tmp_str {#1}
+    \exp_args:NNo
+    \regex_match:NnTF \c_@@_float_placement_regex { \l_@@_tmp_str }
+      { \str_set_eq:NN \l_@@_float_placement_str \l_@@_tmp_str }
+      { \msg_warning:nnn { ttlitf } { unknown-placement } {#1} }
   }
-\cs_new_protected:Npn \@@_set_float_placement_aux:nn #1#2
-  {
-    \regex_match:NnTF \c_@@_float_placement_regex {#1}
-      { \tl_set:Nn \l_@@_float_placement_tl {#1} }
-      { \msg_warning:nnn { ttlitf } { unknown-placement } {#2} }
-  }
-\tl_new:N \l_@@_tmp_tl
-\tl_new:N \l_@@_float_placement_tl
-\bool_new:N \l_@@_float_placement_bool
-\regex_const:Nn \c_@@_float_placement_regex { \A [htbp]+ \Z }
+\str_new:N \l_@@_tmp_str
+\str_new:N \l_@@_float_placement_str
+\regex_const:Nn \c_@@_float_placement_regex { \A [htbp]* \Z }
 \msg_new:nnn { ttlitf } { unknown-placement }
   { Unknown~float~placement~"#1"~is~ignored. }
 %    \end{macrocode}
@@ -931,11 +936,9 @@ Copyright and Licence
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_set_float_unknown:nn #1#2
   {
-    \tl_clear:N \l_@@_float_placement_tl
-    \tl_set:Nx \l_@@_tmp_tl {#1}
-    \tl_remove_all:Nn \l_@@_tmp_tl { ~ }
-    \exp_args:No \@@_set_float_placement_aux:nn { \l_@@_tmp_tl } {#1}
-    \tl_if_empty:NF \l_@@_float_placement_tl
+    \str_clear:N \l_@@_float_placement_str
+    \@@_set_float_placement:n {#1}
+    \str_if_empty:NF \l_@@_float_placement_str
       { \@@_add_float_line_spec:n {#2} }
   }
 \cs_new_protected:Npn \@@_add_float_line_spec:n #1
@@ -945,6 +948,18 @@ Copyright and Licence
       \keys_set_groups:nno { title / float } { extra } { \l_@@_unknown_tl }
     \exp_last_unbraced:Ne \group_end:
       { \exp_args:No \@@_add_float_line_aux:n { \l_@@_head_foot_tl } }
+  }
+\tl_new:N \l_@@_unknown_tl
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_placement_normalization:Nn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_placement_normalization:Nn #1#2
+  {
+    \str_set:Nx #1 {#2}
+    \str_remove_all:Nn #1 { ~ }
+    \str_set:Nx #1 { \exp_args:No \str_lowercase:n {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -962,7 +977,7 @@ Copyright and Licence
         \tl_if_empty:NTF \l_@@_unknown_tl
           { \@@_add_float_line_aux:n {#2} }
           {
-            \tl_if_empty:NF \l_@@_float_placement_tl
+            \str_if_empty:NF \l_@@_float_placement_str
               { \@@_add_float_line_aux:n {#2} }
             \@@_add_float_unknown:nn
               { \exp_not:o { \l_@@_unknown_tl } }
@@ -975,9 +990,9 @@ Copyright and Licence
     \@@_add_float_line:nnnn
       {#1}
       {
-        [ { \exp_not:o { \l_@@_even_left_tl } } ]
-        [ { \exp_not:o { \l_@@_even_center_tl } } ]
-        [ { \exp_not:o { \l_@@_even_right_tl } } ]
+        { \exp_not:o { \l_@@_even_left_tl } }
+        { \exp_not:o { \l_@@_even_center_tl } }
+        { \exp_not:o { \l_@@_even_right_tl } }
         { \exp_not:o { \l_@@_odd_left_tl } }
         { \exp_not:o { \l_@@_odd_center_tl } }
         { \exp_not:o { \l_@@_odd_right_tl } }
@@ -987,9 +1002,9 @@ Copyright and Licence
   }
 \cs_new:Npn \@@_float_placement:n #1
   {
-    \tl_if_empty:NTF \l_@@_float_placement_tl
+    \str_if_empty:NTF \l_@@_float_placement_str
       { \str_if_eq:nnTF {#1} { head } { tp } { bp } }
-      { \l_@@_float_placement_tl }
+      { \l_@@_float_placement_str }
   }
 \cs_new_protected:Npn \@@_add_float_line:nnnn
   {
@@ -999,26 +1014,34 @@ Copyright and Licence
   }
 \cs_new_protected:Npn \@@_add_float_line_aux:nnnn #1#2#3#4
   { \@@_add_style:n { \ttlitf@setfloat {#1} #2 {#3} [#4] } }
-\cs_new_protected:Npn \@@_next_float_line:nnnn #1#2#3#4
-  {
-    \bool_set_false:N \l_@@_next_float_bool
-    \ttlitf@nextfloat {#1} #2 {#3} [#4]
-  }
 \cs_new_protected:Npn \ttlitf@setfloat #1
   {
     \tl_clear:N \ttl@c
-    \use:c { \ttl@setft #1 @i }
+    \use:c { ttl@setft #1 @i }
   }
-\cs_new_protected:Npn \ttlitf@nextfloat #1
-  {
-    \ttl@nextfree
-    \use:c { \ttl@setft #1 @i }
-  }
-\bool_new:N \l_@@_next_float_bool
 \hook_gput_code:nnn { package / titleps / after } { titleitf }
   {
     \cs_if_exist:NF \ttl@setfthead@i
       { \cs_set_eq:NN \@@_add_float_line:nn \use_none:nn }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ttlitf_next_float:nn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \ttlitf_next_float:nn #1#2
+  {
+    \bool_set_true:N \l_@@_next_float_bool
+    \@@_add_float_line:nn {#2} {#1}
+    \bool_set_false:N \l_@@_next_float_bool
+  }
+\bool_new:N \l_@@_next_float_bool
+\cs_new_protected:Npn \@@_next_float_line:nnnn #1#2#3#4
+  { \ttlitf@nextfloat {#1} #2 {#3} [#4] }
+\cs_new_protected:Npn \ttlitf@nextfloat #1
+  {
+    \ttl@nextfree
+    \use:c { ttl@setft #1 @i }
   }
 %    \end{macrocode}
 % \end{macro}
